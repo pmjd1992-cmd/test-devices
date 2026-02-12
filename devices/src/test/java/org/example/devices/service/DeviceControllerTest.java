@@ -11,8 +11,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class DeviceControllerTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:16");
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
 
     @Test
     void shouldCreateDevice() {

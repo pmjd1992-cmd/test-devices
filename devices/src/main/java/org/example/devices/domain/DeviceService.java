@@ -1,9 +1,13 @@
 package org.example.devices.domain;
 
+import org.example.devices.db.DeviceEntity;
 import org.example.devices.db.DeviceRepo;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -16,16 +20,31 @@ public class DeviceService {
     }
 
     public Device create(Device device) {
-        return repository.save(device);
+        DeviceEntity deviceEntity = new DeviceEntity();
+        deviceEntity.setName(device.name());
+        deviceEntity.setBrand(device.brand());
+        deviceEntity.setState(device.state());
+        deviceEntity.setCreationTime(Instant.now());
+
+        DeviceEntity save = repository.save(deviceEntity);
+        return new Device(save.getId(), save.getName(), save.getBrand(), save.getState(), save.getCreationTime());
     }
 
     public Device get(UUID id) {
-        return repository.findById(id)
+        DeviceEntity device_not_found = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Device not found"));
+        Device device = new Device(device_not_found.getId(), device_not_found.getName(), device_not_found.getBrand(),
+                device_not_found.getState(), device_not_found.getCreationTime());
+        return device;
     }
 
     public List<Device> getAll() {
-        return repository.findAll();
+        List<DeviceEntity> all = repository.findAll();
+        List<Device> devices = new ArrayList<>();
+        for (DeviceEntity d : all) {
+            devices.add(new Device(d.getId(), d.getName(), d.getBrand(), d.getState(), d.getCreationTime()));
+        }
+        return devices;
     }
 
     public List<Device> getByBrand(String brand) {
@@ -37,29 +56,32 @@ public class DeviceService {
     }
 
     public Device update(UUID id, Device updated) {
-        Device existing = get(id);
-
-        if (existing.getState() == DeviceState.IN_USE) {
-            if (!existing.getName().equals(updated.getName()) ||
-                    !existing.getBrand().equals(updated.getBrand())) {
+        Optional<DeviceEntity> existing = repository.findById(id);
+        if (existing.isEmpty()) {
+            return null;
+        }
+        if (existing.get().getState() == DeviceState.IN_USE) {
+            if (!existing.get().getName().equals(updated.name()) ||
+                    !existing.get().getBrand().equals(updated.brand())) {
                 throw new RuntimeException("Cannot update name/brand while device is in use");
             }
         }
+        DeviceEntity deviceEntity = existing.get();
+        deviceEntity.setName(updated.name());
+        deviceEntity.setBrand(updated.brand());
+        deviceEntity.setState(updated.state());
 
-        existing.setName(updated.getName());
-        existing.setBrand(updated.getBrand());
-        existing.setState(updated.getState());
-
-        return repository.save(existing);
+        DeviceEntity save = repository.save(deviceEntity);
+        return new Device(save.getId(), save.getName(), save.getBrand(), save.getState(), save.getCreationTime());
     }
 
     public void delete(UUID id) {
-        Device device = get(id);
+        Optional<DeviceEntity> device = repository.findById(id);
 
-        if (device.getState() == DeviceState.IN_USE) {
+        if (device.isPresent() && device.get().getState() == DeviceState.IN_USE) {
             throw new RuntimeException("Cannot delete device in use");
         }
 
-        repository.delete(device);
+        repository.delete(device.get());
     }
 }
